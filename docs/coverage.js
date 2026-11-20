@@ -34,13 +34,20 @@
     $("grid-view").hidden = true;
     $("import-grid").value = "";
     $("import-status").textContent = "";
+    $("process-status").textContent = "";
+    $("upload-control").hidden = Boolean(selection);
+    $("grid-heading").textContent = selection ? "Prepare displacement" : "Open prepared dataset";
+    $("process-grid").hidden = !selection || selection.mission !== "s1";
+    $("process-grid").disabled = false;
     $("selected-source").hidden = !selection;
     $("selection-summary").textContent = selection
       ? selection.label + " · " + selection.start + " → " + selection.end + " · AOI " + selection.box.map(x => Number(x.toFixed(4))).join(", ")
       : "Open a geocoded dataset prepared for your study area.";
     if (selection) $("selected-source").href = selection.url;
     $("grid-instructions").textContent = selection
-      ? "Load a grid prepared for this granule. Use its product ID as the frame id in your atlas config."
+      ? selection.mission === "s1"
+        ? "Process the selected Sentinel-1 granule. The service crops the AOI, masks low-coherence pixels, and builds a relative LOS map."
+        : "NISAR archive search is available. Automatic NISAR displacement processing is pending validation."
       : "Choose a file produced by build.py. Include a same-grid DEM to use 3D relief.";
     showStep(2);
   }
@@ -94,7 +101,50 @@
     const options = {interactive:false, color:"#4e698d", weight:1, fillOpacity:0.05};
     for (const group of entry.polygons ?? []) {
       for (const polygon of group) {
-        const numbers = polygon.trim().split(/\s+/).map(Number);
+        $("process-grid").addEventListener("click", async () => {
+    const selection = activeSelection;
+    if (!selection || selection.mission !== "s1") return;
+    const generation = ++loadSequence;
+    const button = $("process-grid"), message = $("process-status");
+    button.disabled = true;
+    message.textContent = "Requesting processing…";
+    const api = new URL("/api/jobs", location.origin);
+    async function read(url, options) {
+      const response = await fetch(url, {...options, signal:AbortSignal.timeout(25000)});
+      if (!response.headers.get("content-type")?.includes("application/json")) {
+        throw new Error("Processing is unavailable on this GitHub Pages frontend. A hosted Python service with Earthdata access is required.");
+      }
+      const payload = await response.json();
+      if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "The processing request failed.");
+      return payload;
+    }
+    try {
+      const job = await read(api, {method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({granule:selection.granule, box:selection.box})});
+      message.textContent = "Preparing the displacement grid…";
+      const deadline = Date.now() + 20 * 60 * 1000;
+      while (generation === loadSequence && Date.now() < deadline) {
+        const result = await read(api.href + "/" + encodeURIComponent(job.id));
+        if (generation !== loadSequence) return;
+        if (result.state === "failed") throw new Error(result.error);
+        if (result.state === "complete") {
+          const frame = result.dataset.products[0].frames[0];
+          window.loadDeformationAtlas(result.dataset, {productIndex:0,start:frame.start,end:frame.end,box:selection.box});
+          $("grid-view").hidden = false;
+          message.textContent = "Displacement grid ready.";
+          return;
+        }
+        await new Promise(resolve => setTimeout(resolve,2000));
+      }
+      if (generation === loadSequence) throw new Error("The processing job timed out.");
+    } catch (error) {
+      if (generation === loadSequence) message.textContent = error.message;
+    } finally {
+      if (generation === loadSequence) button.disabled = false;
+    }
+  });
+
+  const numbers = polygon.trim().split(/\s+/).map(Number);
         if (numbers.length < 6 || numbers.length % 2 || !numbers.every(Number.isFinite)) continue;
         const points = numbers.filter((_x,i) => i % 2 === 0).map((lat,i) => [lat,numbers[2*i+1]]);
         if (Math.max(...points.map(p => p[1])) - Math.min(...points.map(p => p[1])) <= 180) {
@@ -144,8 +194,11 @@
             const li = document.createElement("li");
             li.className = "result";
             const name = entry.producer_granule_id ?? entry.title;
-            const intervalStart = (entry.time_start ?? "").slice(0,10);
-            const intervalEnd = (entry.time_end ?? "").slice(0,10);
+            const ariaDates = name.match(/^S1-GUNW-.*?-tops-(\d{8})_(\d{8})-/);
+            const formatDate = digits => digits.replace(/^(\d{4})(\d{2})(\d{2})$/, "$1-$2-$3");
+            const pair = ariaDates?.slice(1).sort().map(formatDate);
+            const intervalStart = pair?.[0] ?? (entry.time_start ?? "").slice(0,10);
+            const intervalEnd = pair?.[1] ?? (entry.time_end ?? "").slice(0,10);
             const url = "https://search.earthdata.nasa.gov/search/granules?p=" + encodeURIComponent(entry.collection_concept_id) + "&q=" + encodeURIComponent(name);
             const description = document.createElement("div");
             const title = document.createElement("strong");
@@ -157,7 +210,7 @@
             choose.type = "button";
             choose.textContent = "Select product";
             choose.setAttribute("aria-label", "Select " + name);
-            choose.addEventListener("click", () => openViewer({name, label, start:intervalStart, end:intervalEnd, box, url}));
+            choose.addEventListener("click", () => openViewer({name, label, mission:chosen[i][0], granule:entry.id, start:intervalStart, end:intervalEnd, box, url}));
             li.append(description, choose);
             list.append(li);
           }

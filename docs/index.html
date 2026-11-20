@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Land Deformation Atlas</title>
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script defer src="atlas.js?v=4"></script>
-<script defer src="coverage.js?v=4"></script>
+<script defer src="atlas.js?v=5"></script>
+<script defer src="coverage.js?v=5"></script>
 </head>
 <body>
 <header class="masthead"><div class="brand"><span class="mark" aria-hidden="true">◈</span> Land Deformation Atlas</div>
@@ -39,11 +39,11 @@
 </section>
 <section id="displacement-step" hidden>
 <div class="viewer-top">
-<div><h1 id="viewer-title" tabindex="-1">InSAR displacement</h1><p id="selection-summary"></p></div>
+<div><h1 id="viewer-title" tabindex="-1">InSAR displacement dashboard</h1><p id="selection-summary"></p></div>
 <div class="viewer-actions"><a id="selected-source" target="_blank" rel="noopener noreferrer" hidden>Open in Earthdata ↗</a><button id="back-search" type="button">Back to products</button></div>
 </div>
-<div class="import"><div><h2 id="grid-heading">Load displacement grid</h2><p id="grid-instructions"></p><p id="import-status" class="feedback" role="status"></p></div>
-<label class="upload-label"><span>Choose prepared file</span><input id="import-grid" type="file" accept=".json,.js"></label></div>
+<div class="import"><div><h2 id="grid-heading">Prepare displacement</h2><p id="grid-instructions"></p><button id="process-grid" type="button" hidden>Process selected AOI</button><p id="process-status" class="feedback" role="status"></p><p id="import-status" class="feedback" role="status"></p></div>
+<label class="upload-label" id="upload-control"><span>Choose prepared file</span><input id="import-grid" type="file" accept=".json,.js"></label></div>
 <div id="grid-view" hidden>
 <div class="dataset-heading"><h2 id="title"></h2><span id="status" class="status"></span></div>
 <div class="workspace">
@@ -79,6 +79,13 @@
 <section class="inspector"><div><p class="eyebrow">PIXEL INSPECTOR</p><h2 id="point"></h2><p id="point-value" aria-live="polite"></p><p id="chart-note"></p></div><canvas id="chart" width="760" height="228" role="img" aria-label="Selected pixel displacement over time"></canvas></section>
 <footer>Positive LOS is toward the sensor. Hatched pixels have no displayed measurement.</footer>
 </div>
+</section>
+<section class="catalog" id="help" aria-label="Help">
+<div class="catalog-head"><h2>FAQ</h2>
+<details><summary>Do I need a prepared file?</summary><p>The processing service can build a grid from a selected Sentinel-1 ARIA GUNW product once connected. NISAR search is available, and automatic processing still requires validation.</p></details>
+<details><summary>What does displacement measure?</summary><p>Colors show motion along the satellite line of sight relative to a reference pixel. Positive values indicate motion toward the sensor. A 3D view requires a same-grid elevation layer.</p></details>
+<details><summary>Why are there missing pixels?</summary><p>Low coherence, invalid data, or a different unwrapping component can mask a pixel. Archive footprints establish candidate coverage.</p></details>
+<h2>Contact</h2><p><a href="https://github.com/PaulPusp/land-deformation-atlas/issues">Report an issue or request a feature on GitHub</a></p></div>
 </section>
 </main>
 </body>

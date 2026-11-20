@@ -72,3 +72,16 @@ Keep missions and look directions separate until intervals, reference and LOS ge
 Draw a rectangle on the world map or type its geographic bounds. Choose a search window and select the Sentinel-1 ARIA or NISAR GUNW archive. NASA CMR returns products intersecting the bounds and overlapping the window. The site shows up to 15 results per collection. Footprint overlap does not imply complete coverage or usable coherence over the AOI. Choose **Select product** on a result to open the displacement workspace with its AOI and metadata. Use **Open in Earthdata** to inspect the source granule.
 
 To render observations for that region, download an appropriate source product, prepare the rasters as described above, and run the build command with your AOI config. Set each frame id to its Earthdata granule ID, then choose the resulting data.js in **Choose prepared file**. The viewer checks the selected granule ID and AOI overlap and initializes the dates from the matching frame. The file is parsed as data on your device. Add a same-grid DEM for 3D relief. The static site searches metadata and renders prepared grids. It has no online granule processing service.
+
+## Run the processing service
+
+GitHub Pages serves the static interface. The Python worker needs a separate host. The Docker image serves both the interface and API on one origin. Configure EARTHDATA_TOKEN through the host secret manager. Confirm ASF accepts the configured authentication method before exposing the service.
+
+```bash
+docker build -t land-deformation-atlas .
+docker run --rm -p 127.0.0.1:8000:8000 --env EARTHDATA_TOKEN land-deformation-atlas
+```
+
+With the service running, select a Sentinel-1 ARIA GUNW granule and click **Process selected AOI**. The worker resolves the granule ID using CMR, downloads its NetCDF, crops to native pixels, masks by coherence and connected component, and provides a relative LOS grid. It uses the two dates encoded in the ARIA product ID. It does not add a DEM. Automatic NISAR processing requires independent validation before release.
+
+This implementation has a bounded, in-memory job queue and runs in a single process. Before public deployment, add account authentication and job ownership, durable job and result storage, per-user quotas, service monitoring, and real-granule validation for each supported mission. Keep Earthdata credentials out of the browser and repository.
