@@ -5,7 +5,8 @@ An interactive browser viewer and reproducible Python pipeline for comparing geo
 ## What the viewer shows
 
 - Sentinel-1-style cumulative LOS displacement and NISAR-style individual interferogram intervals.
-- Date selection, coherence, valid-pixel coverage, and relative LOS velocity for a common-baseline series.
+- Custom AOI rectangles, start and end date selection, coherence, valid-pixel coverage, and relative LOS velocity for a common-baseline series.
+- Rotatable 3D relief from a same-grid elevation GeoTIFF specified as terrain in the product config. The Trishuli demo uses synthetic terrain. Switch to top-down to view overlays or pick AOI corners.
 - Toggleable GeoJSON context, pixel inspection by click or arrow keys, and selected-pixel CSV export.
 
 ## Run it
@@ -19,7 +20,7 @@ python build.py inputs/demo/config.json docs/data.js
 python -m http.server 8000 --directory docs
 ```
 
-Visit http://localhost:8000. For GitHub Pages, publish from the main branch and the /docs folder. Treat data.js as public when publishing. The output includes the coordinates and values of the displayed pixels.
+Visit http://localhost:8000 or open the [live viewer](https://paulpusp.github.io/land-deformation-atlas/). For GitHub Pages, publish from the main branch and the /docs folder. Treat data.js as public when publishing. The output includes the coordinates and values of the displayed pixels.
 
 ## From satellite product to viewer
 
@@ -43,6 +44,10 @@ Replace the polarization and window with values verified in the granule. The exp
 Use the same crop and grid for all bands and dates within a dataset. Each dataset can have a different grid. Keep an AOI under 20,000 pixels for this static client. Crop using the same pixel window in each aligned product. Reprojection is generally best done upstream with continuous and categorical layers handled appropriately. Supply valid masks as 1 for accepted pixels and 0 elsewhere. Use connected-component labels with positive integer IDs and zero or nodata for unconnected pixels.
 
 Start from [the Sentinel-1 config example](examples/sentinel1.config.json). Paths are relative to that config. The reference is a zero-based raster row/column. For unwrapped phase change the unit to radian, add wavelength_m and a components path for every frame, and set toward_sign to the sign that maps chronological phase differences to positive-toward LOS. Benchmark this convention on a published or surveyed example before interpreting a real NISAR result. Sentinel-1 and NISAR product labels, source IDs, corrections and acquisition dates come from user-supplied metadata and should be checked against the granules.
+
+## Date and AOI selection
+
+Use the available intervals in the side panel. Cumulative mode calculates the signed endpoint difference on the intersection of valid pixels. Pair mode requires the exact recorded start and end. A custom AOI is a lon/lat bounding box applied to the loaded pixels. The browser does not fetch new satellite acquisitions.
 
 ## Interpretation and acceptance
 

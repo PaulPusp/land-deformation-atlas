@@ -28,13 +28,16 @@ def tif(name, array):
     return name
 
 
+terrain = 490 + 740 * (1 - np.exp(-((row - river) / 8) ** 2))
+terrain += 380 * (0.5 + 0.5 * np.cos(col / 10 + row / 12)) * (1 - np.exp(-((row - river) / 7) ** 2))
+terrain_file = tif("synthetic-terrain.tif", terrain)
 products = []
 for key, label, mode, unit, sign in [
     ("s1", "Sentinel-1 · simulated stack", "cumulative", "m", 1),
     ("ni", "NISAR · simulated pairs", "pair", "radian", -1),
 ]:
     product = dict(name=label, mode=mode, unit=unit, toward_sign=sign,
-                   wavelength_m=0.24, reference_pixel=[4, 4], min_coherence=0.35,
+                   terrain=terrain_file, wavelength_m=0.24, reference_pixel=[4, 4], min_coherence=0.35,
                    source="Deterministic synthetic rasters near Trishuli, Nepal",
                    corrections="Simulation only. No satellite acquisitions or field observations.",
                    frames=[])

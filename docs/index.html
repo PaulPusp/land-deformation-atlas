@@ -17,19 +17,33 @@
 <h2>Observation</h2>
 <label for="product">Dataset</label><select id="product"></select>
 <label for="metric">Map layer</label><select id="metric"><option value="los">LOS displacement</option><option value="quality">Coherence</option><option value="velocity">LOS velocity</option></select>
-<label for="epoch">Acquisition interval</label><input id="epoch" type="range" min="0" value="0"><output id="dates"></output>
+<div class="date-fields"><div><label for="start">Start date</label><input id="start" type="date" required></div><div><label for="end">End date</label><input id="end" type="date" required></div></div>
+<button id="apply" type="button">Apply dates</button><output id="dates"></output>
+<p id="feedback" class="feedback" role="status"></p>
+<h2>Area of interest</h2>
+<div class="actions"><button id="aoi-pick" type="button">Pick two corners</button><button id="aoi-reset" type="button">Clear</button></div>
+<details id="bounds"><summary>Enter coordinates</summary><div class="date-fields">
+<div><label for="west">West (°)</label><input id="west" type="number" step="any" min="-180" max="180"></div>
+<div><label for="south">South (°)</label><input id="south" type="number" step="any" min="-90" max="90"></div>
+<div><label for="east">East (°)</label><input id="east" type="number" step="any" min="-180" max="180"></div>
+<div><label for="north">North (°)</label><input id="north" type="number" step="any" min="-90" max="90"></div>
+</div><button id="aoi-apply" type="button">Apply coordinates</button></details>
+<p id="aoi-status" class="feedback" role="status"></p>
+<h2>Date coverage and method</h2><div id="method"></div>
+<details id="intervals"><summary>Available acquisition intervals</summary><ul id="interval-list"></ul></details>
 <h2>Hazard context</h2><div id="context"></div>
 <details><summary>Data provenance</summary><p id="source"></p><p id="corrections"></p><p id="provenance"></p></details>
 <a id="download" download="los-point.csv">Download point CSV ↓</a>
 </aside>
 <section class="mainpanel">
 <div class="maphead"><div><p class="eyebrow">MAP</p><h2 id="map-title"></h2></div><span id="coverage"></span></div>
-<div class="mapwrap"><canvas id="map" width="1060" height="600" tabindex="0" aria-label="Displacement map. Use the arrow keys to inspect adjacent pixels."></canvas><div class="north" aria-hidden="true">↑<br>N</div></div>
+<div class="view-controls"><label for="view">Map view</label><select id="view"><option value="3d">3D relief</option><option value="2d">Top-down</option></select><label for="rotation">Rotate</label><input id="rotation" type="range" min="-180" max="180" value="-23"><label for="tilt">Tilt</label><input id="tilt" type="range" min="15" max="75" value="48"></div>
+<div class="mapwrap"><canvas id="map" width="1060" height="600" tabindex="0" aria-label="Displacement map. Use the arrow keys to inspect adjacent pixels."></canvas><div class="north" id="orientation" aria-hidden="true"></div></div>
 <div class="mapfoot"><div><strong id="legend-title"></strong><div id="gradient"></div><div id="scale"></div></div><p id="legend-note"></p></div>
 </section>
 </div>
 <section class="inspector"><div><p class="eyebrow">PIXEL INSPECTOR</p><h2 id="point"></h2><p id="point-value" aria-live="polite"></p><p id="chart-note"></p></div><canvas id="chart" width="760" height="228" role="img" aria-label="Selected pixel displacement over time"></canvas></section>
 </main>
-<footer>Positive LOS is toward the sensor. Transparent or hatched pixels have no displayed measurement.</footer>
+<footer>Positive LOS is toward the sensor. Dark or hatched pixels have no displayed measurement.</footer>
 </body>
 </html>

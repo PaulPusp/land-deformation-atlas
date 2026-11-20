@@ -79,6 +79,7 @@ def build(config_path, destination):
             values.append(np.where(valid, (displacement - displacement[row, col]) * sign * scale, np.nan))
             quality.append(np.where((coherence >= 0) & (coherence <= 1), coherence, np.nan))
 
+        terrain = read(product["terrain"]) if product.get("terrain") else None
         crs, affine, (height, width) = grid
         rows, cols = np.indices((height, width))
         xs, ys = affine * (cols.ravel() + 0.5, rows.ravel() + 0.5)
@@ -104,7 +105,7 @@ def build(config_path, destination):
             "corrections": product["corrections"], "reference": row * width + col,
             "threshold": threshold, "width": width, "height": height,
             "lon": lon, "lat": lat, "edge_lon": edge_lon, "edge_lat": edge_lat,
-            "velocity": numbers(rates),
+            "velocity": numbers(rates), "terrain": numbers(terrain) if terrain is not None else None,
             "frames": [{"start": f["start"], "end": f["end"], "id": f["id"],
                         "los": numbers(v), "quality": numbers(q)}
                        for f, v, q in zip(frames, stack, quality)],

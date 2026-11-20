@@ -7,12 +7,12 @@ const ctx = map.getContext("2d");
 const plot = chart.getContext("2d");
 const productSelect = el("product");
 const metric = el("metric");
-const epoch = el("epoch");
+const start = el("start"), end = el("end"), view = el("view");
 const overlays = [];
 const overlayColors = ["#ffd866", "#74e6ee", "#ecabdb"];
 const diverging = [[40, 106, 181], [241, 242, 225], [190, 61, 33]];
 const sequential = [[28, 46, 58], [38, 111, 102], [218, 242, 165]];
-let product, selected, centers;
+let product, selected, centers, interval, aoi, picking, firstCorner;
 
 el("status").textContent = data.synthetic ? "SYNTHETIC DEMO" : "INSAR PRODUCT";
 el("title").textContent = data.title;
@@ -42,14 +42,66 @@ function color(t, palette) {
 function setProduct() {
   product = data.products[Number(productSelect.value)];
   selected = product.reference;
-  epoch.max = product.frames.length - 1;
-  epoch.value = epoch.max;
+  const earliest = product.frames.reduce((min, f) => f.start < min ? f.start : min, product.frames[0].start);
+  const latest = product.frames.at(-1).end;
+  for (const field of [start, end]) {
+    field.min = earliest;
+    field.max = latest;
+  }
+  start.value = product.frames.at(-1).start;
+  end.value = latest;
+  el("method").replaceChildren(...[
+    "Coverage: " + earliest + " to " + latest + ". Select two distinct acquisition dates.",
+    product.mode === "pair"
+      ? "Pair mode requires an exact listed interval. Available spans: " + [...new Set(product.frames.map(f => days(f.start, f.end)))].sort((a,b) => a-b).join(", ") + " days."
+      : "Common-baseline mode subtracts the two selected LOS grids. The baseline is zero. Shortest available gap: " + Math.min(...product.frames.map((f, i) => days(i ? product.frames[i-1].end : earliest, f.end))) + " days.",
+    "Dates are never interpolated. Positive LOS is toward the satellite. Pixels must pass the source masks and coherence threshold (" + product.threshold + "). Pair quality is coherence. For differenced dates, the view shows the lower endpoint coherence.",
+    "Velocity uses the full cumulative stack. Relief is an elevation surface with exaggerated height. Color carries the LOS measurement. A rectangle filters the loaded footprint. Hazard overlays are available in top-down view."
+  ].map(message => Object.assign(document.createElement("p"), {textContent:message})));
+  el("interval-list").replaceChildren(...product.frames.map(f =>
+    Object.assign(document.createElement("li"), {textContent:f.start + " → " + f.end})));
+  view.options[0].disabled = !product.terrain?.some(Number.isFinite);
+  if (view.options[0].disabled) view.value = "2d";
   const velocityAvailable = product.velocity.some(value => value !== null);
   metric.options[2].disabled = !velocityAvailable;
   if (!velocityAvailable && metric.value === "velocity") metric.value = "los";
   el("source").textContent = product.source;
   el("corrections").textContent = product.corrections;
   el("provenance").textContent = "Reference pixel " + product.reference + " · Minimum coherence " + product.threshold;
+  applyDates();
+}
+
+function days(a,b) { return (Date.parse(b) - Date.parse(a)) / 86400000; }
+
+function applyDates() {
+  const a = start.value, b = end.value;
+  const last = product.frames.find(f => f.end === b);
+  const first = product.frames.find(f => f.end === a);
+  interval = null;
+  if (a && b && a < b && last) {
+    if (last.start === a) interval = last;
+    else if (product.mode === "cumulative" && first) {
+      interval = {start:a, end:b, id:first.id + " → " + last.id,
+        los:last.los.map((value,i) => value === null || first.los[i] === null ? null : value - first.los[i]),
+        quality:last.quality.map((value,i) => value === null || first.quality[i] === null ? null : Math.min(value, first.quality[i]))};
+    }
+  }
+  el("feedback").textContent = interval ? "" : "No observation for these dates. Check the acquisition list and select a supported interval.";
+  metric.value = "los";
+  draw();
+}
+
+function inAOI(lon,lat) {
+  return !aoi || (lon >= aoi[0] && lat >= aoi[1] && lon <= aoi[2] && lat <= aoi[3]);
+}
+
+function setAOI(bounds) {
+  aoi = bounds;
+  picking = false;
+  firstCorner = null;
+  ["west","south","east","north"].forEach((id,i) => el(id).value = bounds ? bounds[i] : "");
+  const inside = product.lon.findIndex((lon,i) => inAOI(lon,product.lat[i]));
+  if (inside >= 0 && !inAOI(product.lon[selected],product.lat[selected])) selected = inside;
   draw();
 }
 
@@ -80,20 +132,25 @@ function geometry(shape, project) {
 }
 
 function draw() {
-  const frame = product.frames[Number(epoch.value)];
-  el("dates").textContent = frame.start + " → " + frame.end;
-  el("dates").title = frame.id;
+  const frame = interval;
+  el("dates").textContent = frame ? frame.start + " → " + frame.end + " · " + days(frame.start, frame.end) + " days" : "";
+  el("dates").title = frame?.id ?? "";
   const mode = metric.value;
   const isQuality = mode === "quality";
   const palette = isQuality ? sequential : diverging;
-  const values = mode === "velocity" ? product.velocity : frame[mode];
-  const domain = mode === "velocity" ? [values] : product.frames.map(item => item[mode]);
+  const raw = !frame ? product.lon.map(() => null) : mode === "velocity" ? product.velocity : frame[mode];
+  const inside = product.lon.map((lon,i) => inAOI(lon,product.lat[i]));
+  const values = raw.map((value,i) => inside[i] ? value : null);
+  const count = inside.filter(Boolean).length;
+  el("aoi-status").textContent = picking ? (firstCorner ? "Pick the opposite corner." : "Pick the first corner on the map.") :
+    count ? (aoi ? "Selected rectangle · " + count + " pixel centers" : "Full loaded footprint") : "No coverage within this AOI.";
+  const domain = mode === "velocity" ? [values] : [...product.frames.map(item => item[mode]), values];
   const limit = isQuality ? 1 : Math.max(1, ...domain.map(series => series.reduce((max, x) => Math.max(max, Math.abs(x ?? 0)), 0)));
   const name = metric.selectedOptions[0].text;
   el("map-title").textContent = name;
   el("legend-title").textContent = name + (isQuality ? " (0–1)" : mode === "velocity" ? " (mm/year)" : " (mm)");
   el("legend-note").textContent = isQuality ? "Coherence measures phase consistency." : "Negative is away from the sensor. Positive is toward it.";
-  el("coverage").textContent = Math.round(100 * values.filter(x => x !== null).length / values.length) + "% displayed";
+  el("coverage").textContent = Math.round(100 * values.filter(x => x !== null).length / (count || 1)) + "% displayed";
   el("gradient").style.background = "linear-gradient(90deg," + palette.map((_c, i) => color(i / 2, palette)).join(",") + ")";
   el("scale").replaceChildren(...(isQuality ? [0, 0.5, 1] : [-limit, 0, limit]).map(x => {
     const span = document.createElement("span");
@@ -104,18 +161,52 @@ function draw() {
   const w = map.width, h = map.height;
   const west = Math.min(...product.edge_lon), east = Math.max(...product.edge_lon);
   const south = Math.min(...product.edge_lat), north = Math.max(...product.edge_lat);
-  const pad = 36;
-  const px = lon => pad + (lon - west) / (east - west || 1) * (w - 2 * pad);
-  const py = lat => pad + (north - lat) / (north - south || 1) * (h - 2 * pad);
-  centers = product.lon.map((lon, i) => [px(lon), py(product.lat[i])]);
+  const relief = view.value === "3d" && product.terrain?.some(Number.isFinite);
+  const radians = Math.PI / 180;
+  const angle = Number(el("rotation").value) * radians;
+  const tilt = Number(el("tilt").value) * radians;
+  const cos = Math.cos(angle), sin = Math.sin(angle);
+  const ratio = Math.max(0.008, Math.cos((north + south) / 2 * radians)) * (east-west);
+  const extent = Math.max(ratio, north-south);
+  const factor = relief ? Math.min(w,h) * 0.60 : Math.min(w,h) * 0.86;
+  const floor = relief ? product.terrain.reduce((min,v) => v === null ? min : Math.min(min,v), Infinity) : 0;
+  function project(lon, lat, elevation = floor) {
+    const x = (lon - (west+east)/2) * ratio / (east-west || 1) / extent * factor;
+    const y = ((north+south)/2 - lat) / extent * factor;
+    const depth = x * sin + y * cos;
+    const z = ((elevation ?? floor) - floor) * 1.6 / (extent * 111195) * factor;
+    return relief
+      ? [w/2 + x*cos - y*sin, h/2 + depth*Math.cos(tilt) - z*Math.sin(tilt), depth*Math.sin(tilt)+z*Math.cos(tilt)]
+      : [w/2 + x, h/2 + y, 0];
+  }
+  el("rotation").disabled = el("tilt").disabled = !relief;
+  overlays.forEach(toggle => { toggle.disabled = Boolean(relief); });
+  el("orientation").textContent = relief ? "3D · 1.6× height" : "↑ N";
+  centers = product.lon.map((lon, i) => project(lon, product.lat[i], product.terrain?.[i]));
   ctx.fillStyle = "#213840";
   ctx.fillRect(0, 0, w, h);
-  const edge = product.edge_lon.map((lon, i) => [px(lon), py(product.edge_lat[i])]);
   const stride = product.width + 1;
-  values.forEach((value, i) => {
+  const edge = product.edge_lon.map((lon, i) => {
+    let height = floor;
+    if (relief) {
+      const row = Math.floor(i / stride), col = i % stride;
+      const adjacent = [];
+      for (const r of [row-1,row]) for (const c of [col-1,col]) {
+        if (r >= 0 && r < product.height && c >= 0 && c < product.width) {
+          const z = product.terrain[r*product.width+c];
+          if (Number.isFinite(z)) adjacent.push(z);
+        }
+      }
+      if (adjacent.length) height = adjacent.reduce((sum,z) => sum+z,0) / adjacent.length;
+    }
+    return project(lon, product.edge_lat[i], height);
+  });
+  const order = values.map((_value,i) => i).sort((a,b) => centers[a][2] - centers[b][2]);
+  order.forEach(i => {
+    const value = values[i];
     const upper = i + Math.floor(i / product.width);
-    const corners = [edge[upper], edge[upper + 1], edge[upper + stride + 1], edge[upper + stride]];
-    ctx.fillStyle = value === null ? "#2d4850" : color(isQuality ? value : (value / limit + 1) / 2, palette);
+    const corners = [edge[upper], edge[upper+1], edge[upper+stride+1], edge[upper+stride]];
+    ctx.fillStyle = !inside[i] ? "#172830" : value === null ? "#2d4850" : color(isQuality ? value : (value / limit + 1) / 2, palette);
     ctx.beginPath();
     ctx.moveTo(...corners[0]);
     corners.slice(1).forEach(corner => ctx.lineTo(...corner));
@@ -124,7 +215,7 @@ function draw() {
     ctx.strokeStyle = ctx.fillStyle;
     ctx.lineWidth = 0.8;
     ctx.stroke();
-    if (value === null) {
+    if (value === null && inside[i]) {
       ctx.strokeStyle = "#48626a";
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -133,7 +224,7 @@ function draw() {
       ctx.stroke();
     }
   });
-  data.context.forEach((layer, i) => {
+  if (!relief) data.context.forEach((layer, i) => {
     if (!overlays[i].checked) return;
     ctx.strokeStyle = overlayColors[i % overlayColors.length];
     ctx.lineWidth = 2.5;
@@ -141,11 +232,24 @@ function draw() {
     for (const feature of layer.data.features) {
       if (!feature.geometry) continue;
       ctx.beginPath();
-      geometry(feature.geometry, (lon, lat) => [px(lon), py(lat)]);
+      geometry(feature.geometry, (lon, lat) => project(lon, lat));
       ctx.stroke();
     }
     ctx.setLineDash([]);
   });
+  if (!relief && (aoi || firstCorner)) {
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    if (aoi) {
+      const [x,y] = project(aoi[0],aoi[3]);
+      const [right,bottom] = project(aoi[2],aoi[1]);
+      ctx.strokeRect(x,y,right-x,bottom-y);
+    }
+    if (firstCorner) {
+      const [x,y] = project(...firstCorner);
+      ctx.strokeRect(x-4,y-4,8,8);
+    }
+  }
   ctx.font = "14px system-ui";
   ctx.fillStyle = "#e0eeeb";
   ctx.fillText(west.toFixed(3) + "°", 15, h - 7);
@@ -154,7 +258,8 @@ function draw() {
   ctx.fillText(south.toFixed(3) + "°", 90, h - 7);
   for (const [index, size, ink] of [[product.reference, 6, "#173d35"], [selected, 10, "#fff"]]) {
     ctx.beginPath();
-    ctx.arc(...centers[index], size, 0, 2 * Math.PI);
+    if (!inside[index]) continue;
+    ctx.arc(...centers[index].slice(0,2), size, 0, 2 * Math.PI);
     ctx.strokeStyle = ink;
     ctx.lineWidth = 3;
     ctx.stroke();
@@ -163,19 +268,28 @@ function draw() {
 }
 
 function inspect(frame) {
+  const available = frame && inAOI(product.lon[selected], product.lat[selected]);
+  if (!available) {
+    el("point").textContent = "No observation";
+    el("point-value").textContent = "";
+    el("chart-note").textContent = "";
+    el("download").removeAttribute("href");
+    plot.clearRect(0,0,chart.width,chart.height);
+    return;
+  }
   el("point").textContent = product.lat[selected].toFixed(4) + "°, " + product.lon[selected].toFixed(4) + "°";
   const format = (value, units) => value === null ? "Missing" : value.toFixed(2) + units;
   el("point-value").textContent = format(frame.los[selected], " mm LOS") + " · Coherence " + format(frame.quality[selected], "");
   el("chart-note").textContent = product.mode === "pair"
     ? "Each dot is an independent interferogram interval." : "Common-baseline series · Velocity " + format(product.velocity[selected], " mm/year");
   const rows = product.frames.map(f => [f.start, f.end, f.los[selected], f.quality[selected]]);
-  const csv = "start,end,los_mm,coherence\n" + rows.map(row => row.join(",")).join("\n");
+  const csv = "start,end,los_mm,coherence\n" + [[frame.start,frame.end,frame.los[selected],frame.quality[selected]]].map(row => row.join(",")).join("\n");
   el("download").href = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
   const w = chart.width, h = chart.height;
   plot.clearRect(0, 0, w, h);
   const range = Math.max(1, ...rows.map(row => Math.abs(row[2] ?? 0)));
   const t = rows.map(row => Date.parse(row[1]));
-  const selectedTime = Number(epoch.value);
+  const selectedTime = product.frames.findIndex(f => f.end === frame.end);
   const x = i => 62 + (t[i] - t[0]) / (t.at(-1) - t[0] || 1) * (w - 156);
   const y = n => (h - 26) / 2 - n / range * (h - 63) / 2;
   plot.font = "14px system-ui";
@@ -213,13 +327,25 @@ map.addEventListener("click", event => {
   const x = (event.clientX - bounds.left) * map.width / bounds.width;
   const y = (event.clientY - bounds.top) * map.height / bounds.height;
   let best = Infinity;
+  let nearest = selected;
   centers.forEach(([cx, cy], i) => {
     const distance = (cx - x) ** 2 + (cy - y) ** 2;
     if (distance < best) {
       best = distance;
-      selected = i;
+      nearest = i;
     }
   });
+  if (picking) {
+    const point = [product.lon[nearest], product.lat[nearest]];
+    if (!firstCorner) firstCorner = point;
+    else {
+      const [lon,lat] = firstCorner;
+      if (lon !== point[0] && lat !== point[1]) {
+        setAOI([Math.min(lon,point[0]),Math.min(lat,point[1]),Math.max(lon,point[0]),Math.max(lat,point[1])]);
+        return;
+      }
+    }
+  } else if (inAOI(product.lon[nearest],product.lat[nearest])) selected = nearest;
   draw();
 });
 map.addEventListener("keydown", event => {
@@ -229,10 +355,32 @@ map.addEventListener("keydown", event => {
   const [dr, dc] = offsets[event.key];
   const row = Math.max(0, Math.min(product.height - 1, Math.floor(selected / product.width) + dr));
   const col = Math.max(0, Math.min(product.width - 1, selected % product.width + dc));
-  selected = row * product.width + col;
+  const next = row * product.width + col;
+  if (inAOI(product.lon[next],product.lat[next])) selected = next;
   draw();
 });
 productSelect.addEventListener("change", setProduct);
 metric.addEventListener("change", draw);
-epoch.addEventListener("input", draw);
+el("apply").addEventListener("click", applyDates);
+el("view").addEventListener("change", () => {
+  if (view.value === "3d") { picking = false; firstCorner = null; }
+  draw();
+});
+for (const id of ["tilt","rotation"]) el(id).addEventListener("input",draw);
+el("aoi-pick").addEventListener("click", () => {
+  picking = true;
+  firstCorner = null;
+  view.value = "2d";
+  draw();
+});
+el("aoi-reset").addEventListener("click", () => setAOI(null));
+el("aoi-apply").addEventListener("click", () => {
+  const bounds = ["west","south","east","north"].map(id => el(id).valueAsNumber);
+  const [w,s,e,n] = bounds;
+  if (!bounds.every(Number.isFinite) || w >= e || s >= n || w < -180 || e > 180 || s < -90 || n > 90) {
+    el("aoi-status").textContent = "Use valid coordinates with west < east and south < north.";
+    return;
+  }
+  setAOI(bounds);
+});
 setProduct();
