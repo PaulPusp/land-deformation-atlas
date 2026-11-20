@@ -1,0 +1,21 @@
+{
+  "title": "Replace with your pilot AOI",
+  "synthetic": false,
+  "products": [{
+    "name": "Sentinel-1 · HyP3 GAMMA",
+    "mode": "pair",
+    "unit": "m",
+    "toward_sign": 1,
+    "reference_pixel": [4, 4],
+    "min_coherence": 0.35,
+    "source": "Replace with ASF product ID, track and look direction",
+    "corrections": "Replace with processing version, reference-site justification and applied corrections",
+    "frames": [{
+      "start": "2026-01-01",
+      "end": "2026-01-13",
+      "id": "REPLACE_WITH_PRODUCT_ID",
+      "signal": "pilot_los_disp.tif",
+      "coherence": "pilot_corr.tif"
+    }]
+  }]
+}
