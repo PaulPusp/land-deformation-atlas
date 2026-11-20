@@ -1,6 +1,6 @@
 "use strict";
 const el = id => document.getElementById(id);
-let data = window.ATLAS;
+let data;
 const map = el("map");
 const chart = el("chart");
 const ctx = map.getContext("2d");
@@ -14,16 +14,17 @@ const diverging = [[40, 106, 181], [241, 242, 225], [190, 61, 33]];
 const sequential = [[28, 46, 58], [38, 111, 102], [218, 242, 165]];
 let product, selected, centers, interval, aoi, picking, firstCorner;
 
-function loadAtlas(dataset) {
+function loadAtlas(dataset, selection) {
   data = dataset;
-  aoi = null;
+  aoi = selection?.box ?? null;
   picking = false;
   firstCorner = null;
-  for (const id of ["west","south","east","north"]) el(id).value = "";
+  for (const id of ["west","south","east","north"]) el(id).value = aoi ? aoi[["west","south","east","north"].indexOf(id)] : "";
   productSelect.replaceChildren();
   el("context").replaceChildren();
   overlays.length = 0;
-  el("status").textContent = data.synthetic ? "SYNTHETIC DEMO" : "INSAR PRODUCT";
+  el("context-group").hidden = data.context.length === 0;
+  el("status").textContent = data.synthetic ? "Synthetic data" : "Loaded grid";
   el("title").textContent = data.title;
   for (const [i, p] of data.products.entries()) productSelect.add(new Option(p.name, i));
   for (const [i, layer] of data.context.entries()) {
@@ -41,7 +42,15 @@ function loadAtlas(dataset) {
     overlays.push(toggle);
     el("context").append(label);
   }
+  productSelect.value = selection?.productIndex ?? 0;
+  view.value = "3d";
   setProduct();
+  if (selection) {
+    start.value = selection.start;
+    end.value = selection.end;
+    setAOI(selection.box);
+    applyDates();
+  }
 }
 
 function color(t, palette) {
@@ -179,7 +188,7 @@ function draw() {
   const cos = Math.cos(angle), sin = Math.sin(angle);
   const ratio = Math.max(0.008, Math.cos((north + south) / 2 * radians)) * (east-west);
   const extent = Math.max(ratio, north-south);
-  const factor = relief ? Math.min(w,h) * 0.60 : Math.min(w,h) * 0.86;
+  const factor = relief ? Math.min(w,h) * 0.78 : Math.min(w,h) * 0.86;
   const floor = relief ? product.terrain.reduce((min,v) => v === null ? min : Math.min(min,v), Infinity) : 0;
   function project(lon, lat, elevation = floor) {
     const x = (lon - (west+east)/2) * ratio / (east-west || 1) / extent * factor;
@@ -194,7 +203,7 @@ function draw() {
   overlays.forEach(toggle => { toggle.disabled = Boolean(relief); });
   el("orientation").textContent = relief ? "3D · 1.6× height" : "↑ N";
   centers = product.lon.map((lon, i) => project(lon, product.lat[i], product.terrain?.[i]));
-  ctx.fillStyle = "#213840";
+  ctx.fillStyle = "#121c31";
   ctx.fillRect(0, 0, w, h);
   const stride = product.width + 1;
   const edge = product.edge_lon.map((lon, i) => {
@@ -394,5 +403,4 @@ el("aoi-apply").addEventListener("click", () => {
   }
   setAOI(bounds);
 });
-loadAtlas(data);
 window.loadDeformationAtlas = loadAtlas;

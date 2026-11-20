@@ -4,19 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Land Deformation Atlas</title>
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script defer src="data.js?v=3"></script>
-<script defer src="atlas.js?v=3"></script>
-<script defer src="coverage.js?v=3"></script>
+<script defer src="atlas.js?v=4"></script>
+<script defer src="coverage.js?v=4"></script>
 </head>
 <body>
-<header><div class="brand"><span class="mark" aria-hidden="true">◈</span> Land Deformation Atlas</div><span id="status" class="status"></span></header>
+<header class="masthead"><div class="brand"><span class="mark" aria-hidden="true">◈</span> Land Deformation Atlas</div>
+<nav aria-label="Workflow"><button id="search-step" type="button" aria-current="step">Product selection</button><button id="viewer-step" type="button" disabled>Displacement viewer</button></nav></header>
 <main>
-<section class="intro"><div><p class="eyebrow">SAR INTERFEROMETRY</p><h1 id="title">Land Deformation Atlas</h1></div><p>Explore line-of-sight displacement, measurement quality and hazard context.</p></section>
+<section id="catalog-step">
 <section class="catalog" aria-labelledby="archive-title">
-<div class="catalog-head"><div><h2 id="archive-title">Search satellite coverage</h2><p>Choose two corners anywhere on the world map, or enter coordinates. Search NASA Earthdata for processed InSAR products.</p></div></div>
+<div class="catalog-head"><div><h1 id="archive-title" tabindex="-1">Find an InSAR product</h1><p>Choose two corners anywhere on the world map, or enter coordinates. Search NASA Earthdata for processed InSAR products.</p></div></div>
 <div class="catalog-body">
 <div id="world" aria-label="World map for selecting an archive search area"></div>
 <form id="coverage-form">
@@ -34,9 +34,18 @@
 </form>
 </div>
 <div id="search-results"></div>
-<div class="import"><label for="import-grid">Load a processed atlas dataset</label><input id="import-grid" type="file" accept=".json,.js"><button id="restore-demo" type="button">Restore demo</button><p id="import-status" class="feedback" role="status"></p></div>
+<div class="catalog-actions"><button id="local-step" type="button">Open prepared dataset</button></div>
 </section>
-<h2 class="viewer-heading">Displacement viewer</h2>
+</section>
+<section id="displacement-step" hidden>
+<div class="viewer-top">
+<div><h1 id="viewer-title" tabindex="-1">InSAR displacement</h1><p id="selection-summary"></p></div>
+<div class="viewer-actions"><a id="selected-source" target="_blank" rel="noopener noreferrer" hidden>Open in Earthdata ↗</a><button id="back-search" type="button">Back to products</button></div>
+</div>
+<div class="import"><div><h2 id="grid-heading">Load displacement grid</h2><p id="grid-instructions"></p><p id="import-status" class="feedback" role="status"></p></div>
+<label class="upload-label"><span>Choose prepared file</span><input id="import-grid" type="file" accept=".json,.js"></label></div>
+<div id="grid-view" hidden>
+<div class="dataset-heading"><h2 id="title"></h2><span id="status" class="status"></span></div>
 <div class="workspace">
 <aside>
 <h2>Observation</h2>
@@ -56,7 +65,7 @@
 <p id="aoi-status" class="feedback" role="status"></p>
 <h2>Date coverage and method</h2><div id="method"></div>
 <details id="intervals"><summary>Available acquisition intervals</summary><ul id="interval-list"></ul></details>
-<h2>Hazard context</h2><div id="context"></div>
+<div id="context-group"><h2>Hazard context</h2><div id="context"></div></div>
 <details><summary>Data provenance</summary><p id="source"></p><p id="corrections"></p><p id="provenance"></p></details>
 <a id="download" download="los-point.csv">Download point CSV ↓</a>
 </aside>
@@ -68,7 +77,9 @@
 </section>
 </div>
 <section class="inspector"><div><p class="eyebrow">PIXEL INSPECTOR</p><h2 id="point"></h2><p id="point-value" aria-live="polite"></p><p id="chart-note"></p></div><canvas id="chart" width="760" height="228" role="img" aria-label="Selected pixel displacement over time"></canvas></section>
+<footer>Positive LOS is toward the sensor. Hatched pixels have no displayed measurement.</footer>
+</div>
+</section>
 </main>
-<footer>Positive LOS is toward the sensor. Dark or hatched pixels have no displayed measurement.</footer>
 </body>
 </html>

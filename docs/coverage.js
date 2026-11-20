@@ -7,12 +7,48 @@
     ["nisar", "NISAR provisional", "NISAR_L2_GUNW_PROVISIONAL_V1"]
   ];
   const fields = ["west", "south", "east", "north"].map(id => $("search-" + id));
-  const defaultBounds = [84.915, 28.001, 84.975, 28.038];
   const today = new Date();
   $("search-end").value = today.toISOString().slice(0, 10);
   today.setUTCMonth(today.getUTCMonth() - 3);
   $("search-start").value = today.toISOString().slice(0, 10);
-  fields.forEach((field, i) => field.value = defaultBounds[i]);
+
+  let activeSelection;
+  let stage = 1;
+  let loadSequence = 0;
+  function showStep(step) {
+    stage = step;
+    $("catalog-step").hidden = step !== 1;
+    $("displacement-step").hidden = step !== 2;
+    $("search-step").removeAttribute("aria-current");
+    $("viewer-step").removeAttribute("aria-current");
+    $(step === 1 ? "search-step" : "viewer-step").setAttribute("aria-current", "step");
+    $(step === 1 ? "archive-title" : "viewer-title").focus();
+    if (step === 1) map?.invalidateSize({pan:false});
+    window.scrollTo(0,0);
+  }
+
+  function openViewer(selection) {
+    activeSelection = selection;
+    loadSequence++;
+    $("viewer-step").disabled = false;
+    $("grid-view").hidden = true;
+    $("import-grid").value = "";
+    $("import-status").textContent = "";
+    $("selected-source").hidden = !selection;
+    $("selection-summary").textContent = selection
+      ? selection.label + " · " + selection.start + " → " + selection.end + " · AOI " + selection.box.map(x => Number(x.toFixed(4))).join(", ")
+      : "Open a geocoded dataset prepared for your study area.";
+    if (selection) $("selected-source").href = selection.url;
+    $("grid-instructions").textContent = selection
+      ? "Load a grid prepared for this granule. Use its product ID as the frame id in your atlas config."
+      : "Choose a file produced by build.py. Include a same-grid DEM to use 3D relief.";
+    showStep(2);
+  }
+
+  $("search-step").addEventListener("click", () => showStep(1));
+  $("back-search").addEventListener("click", () => showStep(1));
+  $("viewer-step").addEventListener("click", () => showStep(2));
+  $("local-step").addEventListener("click", () => openViewer(null));
 
   let map, rectangle, corner, footprints;
   const coords = () => fields.map(field => field.valueAsNumber);
@@ -25,7 +61,7 @@
     else rectangle = L.rectangle(bounds, {color:"#166b62",interactive:false}).addTo(map);
   }
   if (window.L) {
-    map = L.map("world", {worldCopyJump:true}).setView([22, 70], 2);
+    map = L.map("world", {worldCopyJump:true}).setView([20, 0], 2);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     }).addTo(map);
@@ -106,13 +142,23 @@
           for (const entry of entries) {
             addFootprints(entry);
             const li = document.createElement("li");
-            const link = document.createElement("a");
+            li.className = "result";
             const name = entry.producer_granule_id ?? entry.title;
-            link.textContent = name;
-            link.href = "https://search.earthdata.nasa.gov/search/granules?p=" + encodeURIComponent(entry.collection_concept_id) + "&q=" + encodeURIComponent(name);
-            link.target = "_blank";
-            link.rel = "noopener noreferrer";
-            li.append(link, " · " + (entry.time_start ?? "").slice(0,10) + " → " + (entry.time_end ?? "").slice(0,10));
+            const intervalStart = (entry.time_start ?? "").slice(0,10);
+            const intervalEnd = (entry.time_end ?? "").slice(0,10);
+            const url = "https://search.earthdata.nasa.gov/search/granules?p=" + encodeURIComponent(entry.collection_concept_id) + "&q=" + encodeURIComponent(name);
+            const description = document.createElement("div");
+            const title = document.createElement("strong");
+            title.textContent = intervalStart + " → " + intervalEnd;
+            const id = document.createElement("small");
+            id.textContent = name;
+            description.append(title,id);
+            const choose = document.createElement("button");
+            choose.type = "button";
+            choose.textContent = "Select product";
+            choose.setAttribute("aria-label", "Select " + name);
+            choose.addEventListener("click", () => openViewer({name, label, start:intervalStart, end:intervalEnd, box, url}));
+            li.append(description, choose);
             list.append(li);
           }
           section.append(list);
@@ -125,7 +171,6 @@
     }
   });
 
-  const demo = window.ATLAS;
   const numbers = (values, length, nullable = false) => Array.isArray(values) && values.length === length &&
     values.every(n => Number.isFinite(n) || (nullable && n === null));
   function validProduct(p) {
@@ -144,23 +189,40 @@
     const file = event.target.files[0];
     if (!file) return;
     const status = $("import-status");
+    const selection = activeSelection;
+    const generation = ++loadSequence;
     try {
       if (file.size > 40 * 1024 * 1024) throw new Error("Use a prepared atlas file under 40 MB.");
       const raw = (await file.text()).trim();
+      if (generation !== loadSequence) return;
       const dataset = JSON.parse(raw.replace(/^window\.ATLAS\s*=\s*/, "").replace(/;$/, ""));
       if (!Array.isArray(dataset?.products) || !dataset.products.length || !dataset.products.every(validProduct) ||
           !Array.isArray(dataset.context) || dataset.context.some(layer => !Array.isArray(layer?.data?.features))) {
         throw new Error("Use a compatible atlas dataset produced by build.py.");
       }
-      window.loadDeformationAtlas(dataset);
-      status.textContent = "Loaded " + file.name + ". Open the displacement viewer below.";
+      let binding;
+      if (selection) {
+        const canonical = id => String(id).replace(/\.(?:h5|nc|zip)$/i,"");
+        const matches = [];
+        dataset.products.forEach((product, index) => {
+          const frame = product.frames.find(f => canonical(f.id) === canonical(selection.name));
+          if (frame) matches.push({product,index,frame});
+        });
+        if (dataset.synthetic || !matches.length) throw new Error("This file does not contain the selected Earthdata granule.");
+        const [west,south,east,north] = selection.box;
+        const match = matches.find(({product}) => product.lon.some((lon,i) =>
+          lon >= west && lon <= east && product.lat[i] >= south && product.lat[i] <= north));
+        if (!match) throw new Error("The prepared granule has no pixel centers in the selected AOI.");
+        binding = {productIndex:match.index,start:match.frame.start,end:match.frame.end,box:selection.box};
+      }
+      window.loadDeformationAtlas(dataset,binding);
+      $("grid-view").hidden = false;
+      status.textContent = "Loaded " + file.name + ".";
+      if (stage === 2) $("grid-view").scrollIntoView({block:"start"});
     } catch (error) {
-      status.textContent = "Could not load the dataset. " + error.message;
+      if (generation === loadSequence) status.textContent = "Could not load the dataset. " + error.message;
+    } finally {
+      if (generation === loadSequence) $("import-grid").value = "";
     }
-  });
-  $("restore-demo").addEventListener("click", () => {
-    $("import-grid").value = "";
-    $("import-status").textContent = "";
-    window.loadDeformationAtlas(demo);
   });
 })();

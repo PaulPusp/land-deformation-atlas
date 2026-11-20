@@ -1,6 +1,6 @@
 # Land Deformation Atlas
 
-An interactive browser viewer and reproducible Python pipeline for comparing geocoded SAR interferometry products with local landslide and flood context. Open [the viewer](docs/index.html) after cloning or extracting the project. The shipped Trishuli Valley demo uses synthetic displacement, coherence and hazard footprints. All three can be regenerated.
+An interactive browser viewer and reproducible Python pipeline for comparing geocoded SAR interferometry products with local landslide and flood context. Open [the live viewer](https://paulpusp.github.io/land-deformation-atlas/) to search for an InSAR product or load a prepared grid. A synthetic fixture is available for local testing.
 
 ## What the viewer shows
 
@@ -16,11 +16,11 @@ Python 3.10 or later is required. The viewer itself needs no backend or external
 ```bash
 python -m pip install -r requirements.txt
 python examples/make_demo.py inputs/demo
-python build.py inputs/demo/config.json docs/data.js
+python build.py inputs/demo/config.json inputs/demo/data.js
 python -m http.server 8000 --directory docs
 ```
 
-Visit http://localhost:8000 or open the [live viewer](https://paulpusp.github.io/land-deformation-atlas/). For GitHub Pages, publish from the main branch and the /docs folder. Treat data.js as public when publishing. The output includes the coordinates and values of the displayed pixels.
+Visit http://localhost:8000, select **Open prepared dataset**, and choose inputs/demo/data.js to load the synthetic fixture. For GitHub Pages, publish from the main branch and the /docs folder. Treat data.js as public when publishing. The output includes the coordinates and values of the displayed pixels.
 
 ## From satellite product to viewer
 
@@ -69,6 +69,6 @@ Keep missions and look directions separate until intervals, reference and LOS ge
 
 ## Find data outside the demo
 
-Draw a rectangle on the world map or type its geographic bounds. Choose a search window and select the Sentinel-1 ARIA or NISAR GUNW archive. NASA CMR returns products intersecting the bounds and overlapping the window. The site shows up to 15 results per collection. Footprint overlap does not imply complete coverage or usable coherence over the AOI. Click a result to inspect its metadata and exact acquisition pair in Earthdata.
+Draw a rectangle on the world map or type its geographic bounds. Choose a search window and select the Sentinel-1 ARIA or NISAR GUNW archive. NASA CMR returns products intersecting the bounds and overlapping the window. The site shows up to 15 results per collection. Footprint overlap does not imply complete coverage or usable coherence over the AOI. Choose **Select product** on a result to open the displacement workspace with its AOI and metadata. Use **Open in Earthdata** to inspect the source granule.
 
-To render observations for that region, download an appropriate source product, prepare the rasters as described above, and run the build command with your AOI config. Choose the resulting data.js in **Load a processed atlas dataset**. The file is parsed as data on your device. Add a same-grid DEM for 3D relief. The static site searches metadata and renders prepared grids. It has no online granule processing service.
+To render observations for that region, download an appropriate source product, prepare the rasters as described above, and run the build command with your AOI config. Set each frame id to its Earthdata granule ID, then choose the resulting data.js in **Choose prepared file**. The viewer checks the selected granule ID and AOI overlap and initializes the dates from the matching frame. The file is parsed as data on your device. Add a same-grid DEM for 3D relief. The static site searches metadata and renders prepared grids. It has no online granule processing service.
