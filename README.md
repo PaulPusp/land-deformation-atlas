@@ -2,6 +2,12 @@
 
 An interactive browser viewer and reproducible Python pipeline for comparing geocoded SAR interferometry products with local landslide and flood context. Open [the live viewer](https://paulpusp.github.io/land-deformation-atlas/) to search for an InSAR product or load a prepared grid. A synthetic fixture is available for local testing.
 
+## Portfolio walkthrough
+
+Open the site and choose **Open synthetic viewer example** to inspect the 3D viewer, acquisition dates, coherence and CSV export. The example is explicitly simulated. Use **Search real satellite products** to query NASA Earthdata for archived Sentinel‑1 ARIA and NISAR GUNW coverage.
+
+The [ARIA processor](processor.py) implements geographic AOI cropping, reference-component selection, coherence masking and relative LOS conversion. The [NISAR exporter](examples/export_nisar.py) extracts an HDF5 window for phase, coherence and connected components. These code paths were tested with fixtures. The portfolio has no validated real-granule displacement case study yet.
+
 ## What the viewer shows
 
 - Sentinel-1-style cumulative LOS displacement and NISAR-style individual interferogram intervals.

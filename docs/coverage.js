@@ -52,7 +52,13 @@
         : "NISAR archive search is available. Automatic NISAR displacement processing is pending validation."
       : "Choose a file produced by build.py. Include a same-grid DEM to use 3D relief.";
     showStep(2);
-    if (selection?.mission === "s1") checkProcessing(loadSequence);
+    if (selection?.mission === "s1") {
+      if (location.hostname.endsWith(".github.io")) {
+        $("process-status").textContent = "Archive record found. Processing runs locally or on the Python service.";
+      } else {
+        checkProcessing(loadSequence);
+      }
+    }
   }
 
   async function checkProcessing(generation) {
@@ -74,6 +80,35 @@
   $("back-search").addEventListener("click", () => showStep(1));
   $("viewer-step").addEventListener("click", () => showStep(2));
   $("local-step").addEventListener("click", () => openViewer(null));
+
+  $("sample-step").addEventListener("click", async () => {
+    const button = $("sample-step"), message = $("sample-status");
+    button.disabled = true;
+    message.textContent = "Loading the synthetic example…";
+    try {
+      if (!window.ATLAS) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "data.js?v=7";
+          script.onload = resolve;
+          script.onerror = () => { script.remove(); reject(new Error("Sample data could not load.")); };
+          document.head.append(script);
+        });
+      }
+      if (!window.ATLAS?.synthetic) throw new Error("Sample data is unavailable.");
+      openViewer(null);
+      $("grid-heading").textContent = "Synthetic viewer example";
+      $("grid-instructions").textContent = "Simulated displacement, coherence, terrain and hazard context for demonstrating the viewer.";
+      $("upload-control").hidden = true;
+      window.loadDeformationAtlas(window.ATLAS);
+      $("grid-view").hidden = false;
+      message.textContent = "";
+    } catch (error) {
+      message.textContent = error.message;
+    } finally {
+      button.disabled = false;
+    }
+  });
 
   let map, rectangle, corner, footprints;
   const coords = () => fields.map(field => field.valueAsNumber);

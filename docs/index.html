@@ -4,17 +4,31 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Land Deformation Atlas</title>
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=7">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script defer src="atlas.js?v=6"></script>
-<script defer src="coverage.js?v=6"></script>
+<script defer src="atlas.js?v=7"></script>
+<script defer src="coverage.js?v=7"></script>
 </head>
 <body>
 <header class="masthead"><div class="brand"><span class="mark" aria-hidden="true">◈</span> Land Deformation Atlas</div>
 <nav aria-label="Workflow"><button id="search-step" type="button" aria-current="step">Product selection</button><button id="viewer-step" type="button" disabled>Displacement viewer</button></nav></header>
 <main>
 <section id="catalog-step">
+<section class="catalog portfolio" aria-labelledby="portfolio-title">
+<div class="catalog-head">
+<h2 id="portfolio-title">Sentinel‑1 and NISAR deformation workflows</h2>
+<p>Puspendu Biswas Paul · Geospatial remote sensing portfolio</p>
+<p>Explore archive coverage and inspect a reproducible example of line-of-sight displacement, coherence masking, and 3D terrain visualization.</p>
+<div class="actions"><button id="sample-step" type="button">Open synthetic viewer example</button><a href="#archive-title">Search real satellite products</a><a href="https://github.com/PaulPusp/land-deformation-atlas">View source and methods</a></div>
+<p id="sample-status" class="feedback" role="status"></p>
+</div>
+<div class="portfolio-grid">
+<div><h3>Sentinel‑1 ARIA</h3><p>Python pipeline for AOI cropping, coherence and component masking, and phase-to-LOS conversion. Processing verified on fixtures.</p><a href="https://github.com/PaulPusp/land-deformation-atlas/blob/main/processor.py">Inspect processing code</a></div>
+<div><h3>NISAR GUNW</h3><p>Live archive discovery and a Python HDF5 window exporter. The exporter was checked on a format fixture. Real-granule displacement validation is pending.</p><a href="https://github.com/PaulPusp/land-deformation-atlas/blob/main/examples/export_nisar.py">Inspect the GUNW exporter</a></div>
+<div><h3>Interactive analysis</h3><p>Inspect a pixel, switch between displacement and coherence, select acquisition dates, and export a CSV. The example uses simulated observations and terrain.</p></div>
+</div>
+</section>
 <section class="catalog" aria-labelledby="archive-title">
 <div class="catalog-head"><div><h1 id="archive-title" tabindex="-1">Find an InSAR product</h1><p>Choose two corners anywhere on the world map, or enter coordinates. Search NASA Earthdata for processed InSAR products.</p></div></div>
 <div class="catalog-body">
