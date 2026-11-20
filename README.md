@@ -66,3 +66,9 @@ Keep missions and look directions separate until intervals, reference and LOS ge
 - [NASA provisional NISAR GUNW collection](https://data.nasa.gov/dataset/nisar-provisional-geocoded-unwrapped-interferogram-product-version-1-cea8a)
 - [JPL OPERA DISP-S1 product specification](https://d2pn8kiwq2w21t.cloudfront.net/documents/OPERA_DISP_S1_Final_Product_Spec.pdf)
 - [Yunjun, Fattahi and Amelung (2019), small-baseline time-series analysis and error correction](https://doi.org/10.1016/j.cageo.2019.104331)
+
+## Find data outside the demo
+
+Draw a rectangle on the world map or type its geographic bounds. Choose a search window and select the Sentinel-1 ARIA or NISAR GUNW archive. NASA CMR returns products intersecting the bounds and overlapping the window. The site shows up to 15 results per collection. Footprint overlap does not imply complete coverage or usable coherence over the AOI. Click a result to inspect its metadata and exact acquisition pair in Earthdata.
+
+To render observations for that region, download an appropriate source product, prepare the rasters as described above, and run the build command with your AOI config. Choose the resulting data.js in **Load a processed atlas dataset**. The file is parsed as data on your device. Add a same-grid DEM for 3D relief. The static site searches metadata and renders prepared grids. It has no online granule processing service.

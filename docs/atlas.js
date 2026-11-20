@@ -1,6 +1,6 @@
 "use strict";
 const el = id => document.getElementById(id);
-const data = window.ATLAS;
+let data = window.ATLAS;
 const map = el("map");
 const chart = el("chart");
 const ctx = map.getContext("2d");
@@ -14,23 +14,34 @@ const diverging = [[40, 106, 181], [241, 242, 225], [190, 61, 33]];
 const sequential = [[28, 46, 58], [38, 111, 102], [218, 242, 165]];
 let product, selected, centers, interval, aoi, picking, firstCorner;
 
-el("status").textContent = data.synthetic ? "SYNTHETIC DEMO" : "INSAR PRODUCT";
-el("title").textContent = data.title;
-for (const [i, p] of data.products.entries()) productSelect.add(new Option(p.name, i));
-for (const [i, layer] of data.context.entries()) {
-  const label = document.createElement("label");
-  label.className = "opt";
-  const toggle = document.createElement("input");
-  toggle.type = "checkbox";
-  toggle.checked = true;
-  toggle.addEventListener("change", draw);
-  const caption = document.createElement("span");
-  caption.textContent = layer.name;
-  caption.style.borderBottom = "3px " + (i % 2 ? "dashed " : "solid ") + overlayColors[i % overlayColors.length];
-  label.append(toggle, caption);
-  label.title = layer.source;
-  overlays.push(toggle);
-  el("context").append(label);
+function loadAtlas(dataset) {
+  data = dataset;
+  aoi = null;
+  picking = false;
+  firstCorner = null;
+  for (const id of ["west","south","east","north"]) el(id).value = "";
+  productSelect.replaceChildren();
+  el("context").replaceChildren();
+  overlays.length = 0;
+  el("status").textContent = data.synthetic ? "SYNTHETIC DEMO" : "INSAR PRODUCT";
+  el("title").textContent = data.title;
+  for (const [i, p] of data.products.entries()) productSelect.add(new Option(p.name, i));
+  for (const [i, layer] of data.context.entries()) {
+    const label = document.createElement("label");
+    label.className = "opt";
+    const toggle = document.createElement("input");
+    toggle.type = "checkbox";
+    toggle.checked = true;
+    toggle.addEventListener("change", draw);
+    const caption = document.createElement("span");
+    caption.textContent = layer.name;
+    caption.style.borderBottom = "3px " + (i % 2 ? "dashed " : "solid ") + overlayColors[i % overlayColors.length];
+    label.append(toggle, caption);
+    label.title = layer.source;
+    overlays.push(toggle);
+    el("context").append(label);
+  }
+  setProduct();
 }
 
 function color(t, palette) {
@@ -383,4 +394,5 @@ el("aoi-apply").addEventListener("click", () => {
   }
   setAOI(bounds);
 });
-setProduct();
+loadAtlas(data);
+window.loadDeformationAtlas = loadAtlas;

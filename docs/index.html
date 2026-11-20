@@ -4,14 +4,39 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Land Deformation Atlas</title>
-<link rel="stylesheet" href="style.css">
-<script defer src="data.js"></script>
-<script defer src="atlas.js"></script>
+<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script defer src="data.js?v=3"></script>
+<script defer src="atlas.js?v=3"></script>
+<script defer src="coverage.js?v=3"></script>
 </head>
 <body>
 <header><div class="brand"><span class="mark" aria-hidden="true">◈</span> Land Deformation Atlas</div><span id="status" class="status"></span></header>
 <main>
 <section class="intro"><div><p class="eyebrow">SAR INTERFEROMETRY</p><h1 id="title">Land Deformation Atlas</h1></div><p>Explore line-of-sight displacement, measurement quality and hazard context.</p></section>
+<section class="catalog" aria-labelledby="archive-title">
+<div class="catalog-head"><div><h2 id="archive-title">Search satellite coverage</h2><p>Choose two corners anywhere on the world map, or enter coordinates. Search NASA Earthdata for processed InSAR products.</p></div></div>
+<div class="catalog-body">
+<div id="world" aria-label="World map for selecting an archive search area"></div>
+<form id="coverage-form">
+<div class="date-fields">
+<div><label for="search-west">West longitude</label><input id="search-west" type="number" min="-180" max="180" step="any" required></div>
+<div><label for="search-south">South latitude</label><input id="search-south" type="number" min="-90" max="90" step="any" required></div>
+<div><label for="search-east">East longitude</label><input id="search-east" type="number" min="-180" max="180" step="any" required></div>
+<div><label for="search-north">North latitude</label><input id="search-north" type="number" min="-90" max="90" step="any" required></div>
+<div><label for="search-start">Search from</label><input id="search-start" type="date" min="2014-01-01" required></div>
+<div><label for="search-end">Search through</label><input id="search-end" type="date" min="2014-01-01" required></div>
+</div>
+<label for="mission">Archive</label><select id="mission"><option value="all">Sentinel-1 and NISAR</option><option value="s1">Sentinel-1 ARIA GUNW</option><option value="nisar">NISAR validated and provisional GUNW</option></select>
+<button id="search-coverage">Find products</button>
+<p id="search-status" class="feedback" role="status"></p>
+</form>
+</div>
+<div id="search-results"></div>
+<div class="import"><label for="import-grid">Load a processed atlas dataset</label><input id="import-grid" type="file" accept=".json,.js"><button id="restore-demo" type="button">Restore demo</button><p id="import-status" class="feedback" role="status"></p></div>
+</section>
+<h2 class="viewer-heading">Displacement viewer</h2>
 <div class="workspace">
 <aside>
 <h2>Observation</h2>
