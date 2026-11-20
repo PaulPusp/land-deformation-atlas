@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: land-deformation-atlas
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/processing
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: EARTHDATA_TOKEN
+        sync: false

@@ -85,3 +85,9 @@ docker run --rm -p 127.0.0.1:8000:8000 --env EARTHDATA_TOKEN land-deformation-at
 With the service running, select a Sentinel-1 ARIA GUNW granule and click **Process selected AOI**. The worker resolves the granule ID using CMR, downloads its NetCDF, crops to native pixels, masks by coherence and connected component, and provides a relative LOS grid. It uses the two dates encoded in the ARIA product ID. It does not add a DEM. Automatic NISAR processing requires independent validation before release.
 
 This implementation has a bounded, in-memory job queue and runs in a single process. Before public deployment, add account authentication and job ownership, durable job and result storage, per-user quotas, service monitoring, and real-granule validation for each supported mission. Keep Earthdata credentials out of the browser and repository.
+
+### Hosted integration check
+
+The Render Blueprint deploys the Docker service as a staging instance. Import this repository as a Blueprint in Render and set EARTHDATA_TOKEN in the service environment. Open the Render service URL directly, since it serves the dashboard and API together. The GitHub Pages address remains a static showcase.
+
+Validate a small Sentinel-1 ARIA AOI from catalog selection through authenticated download and map rendering before offering the service to others. The staging plan is for integration checks. Public operation still requires account access controls, persistent jobs, monitoring, and NISAR validation.

@@ -1,11 +1,11 @@
 """Build an atlas grid from a NASA ASF Sentinel-1 ARIA GUNW catalog record."""
 import json
-import os
 import re
 from pathlib import Path
 from datetime import datetime
 from urllib.parse import urlsplit
 
+import earthaccess
 import h5py
 import numpy as np
 import rasterio
@@ -38,13 +38,15 @@ def download_aria(record, destination):
                   and urlsplit(url).path.endswith("/" + name.removesuffix(".nc") + ".nc")]
     if not candidates:
         raise ValueError("No approved ASF download was found for this product.")
-    token = os.environ.get("EARTHDATA_TOKEN")
-    headers = {"Authorization": "Bearer " + token} if token else {}
+    auth = earthaccess.login(strategy="environment")
+    if not auth.authenticated:
+        raise ValueError("The server could not authenticate with NASA Earthdata.")
     limit = 1024 * 1024 * 1024
-    with requests.get(candidates[0], headers=headers, stream=True, timeout=(15, 45),
-                      allow_redirects=False) as response:
-        if response.status_code in {401, 403} or response.is_redirect:
-            raise ValueError("ASF requires authenticated access. The server's Earthdata download access needs verification.")
+    with earthaccess.get_requests_https_session() as session, session.get(
+        candidates[0], stream=True, timeout=(15, 45)
+    ) as response:
+        if response.status_code in {401, 403} or urlsplit(response.url).hostname == "urs.earthdata.nasa.gov":
+            raise ValueError("NASA Earthdata did not grant this server access to the ASF granule.")
         response.raise_for_status()
         if int(response.headers.get("Content-Length", 0)) > limit:
             raise ValueError("This granule exceeds the server download limit.")
