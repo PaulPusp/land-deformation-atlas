@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Land Deformation Atlas</title>
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=6">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script defer src="atlas.js?v=5"></script>
-<script defer src="coverage.js?v=5"></script>
+<script defer src="atlas.js?v=6"></script>
+<script defer src="coverage.js?v=6"></script>
 </head>
 <body>
 <header class="masthead"><div class="brand"><span class="mark" aria-hidden="true">◈</span> Land Deformation Atlas</div>
@@ -42,7 +42,7 @@
 <div><h1 id="viewer-title" tabindex="-1">InSAR displacement dashboard</h1><p id="selection-summary"></p></div>
 <div class="viewer-actions"><a id="selected-source" target="_blank" rel="noopener noreferrer" hidden>Open in Earthdata ↗</a><button id="back-search" type="button">Back to products</button></div>
 </div>
-<div class="import"><div><h2 id="grid-heading">Prepare displacement</h2><p id="grid-instructions"></p><button id="process-grid" type="button" hidden>Process selected AOI</button><p id="process-status" class="feedback" role="status"></p><p id="import-status" class="feedback" role="status"></p></div>
+<div class="import"><div><h2 id="grid-heading">Prepare displacement</h2><p id="grid-instructions"></p><button id="process-grid" type="button" hidden>Process selected AOI</button><progress id="process-progress" aria-label="Displacement processing underway" hidden></progress><p id="process-status" class="feedback" role="status"></p><p id="import-status" class="feedback" role="status"></p></div>
 <label class="upload-label" id="upload-control"><span>Choose prepared file</span><input id="import-grid" type="file" accept=".json,.js"></label></div>
 <div id="grid-view" hidden>
 <div class="dataset-heading"><h2 id="title"></h2><span id="status" class="status"></span></div>

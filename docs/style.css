@@ -40,3 +40,5 @@ canvas{width:100%;display:block}#map{cursor:crosshair;touch-action:manipulation}
 #gradient{height:8px;border-radius:3px;margin:6px 0}#scale{display:flex;justify-content:space-between}
 .inspector{margin-top:15px;padding:15px;display:grid;grid-template-columns:1fr 2fr;gap:14px;align-items:center}.eyebrow{font-size:11px;font-weight:750;color:var(--accent);margin-bottom:5px}footer{padding:12px 0;color:var(--muted);font-size:12px}
 @media(max-width:750px){.catalog-body,.workspace,.inspector{grid-template-columns:1fr}.masthead,.viewer-top,.import{align-items:flex-start;flex-direction:column}.viewer-actions{margin-top:3px}#world{min-height:295px}}
+
+#process-progress{display:block;width:min(260px,100%);margin-top:10px;accent-color:var(--accent)}

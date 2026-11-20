@@ -34,10 +34,12 @@
     $("grid-view").hidden = true;
     $("import-grid").value = "";
     $("import-status").textContent = "";
-    $("process-status").textContent = "";
+    $("process-status").textContent = selection?.mission === "nisar"
+      ? "Processing unavailable · No job started." : "";
+    $("process-progress").hidden = true;
     $("upload-control").hidden = Boolean(selection);
     $("grid-heading").textContent = selection ? "Prepare displacement" : "Open prepared dataset";
-    $("process-grid").hidden = !selection || selection.mission !== "s1";
+    $("process-grid").hidden = true;
     $("process-grid").disabled = false;
     $("selected-source").hidden = !selection;
     $("selection-summary").textContent = selection
@@ -50,6 +52,22 @@
         : "NISAR archive search is available. Automatic NISAR displacement processing is pending validation."
       : "Choose a file produced by build.py. Include a same-grid DEM to use 3D relief.";
     showStep(2);
+    if (selection?.mission === "s1") checkProcessing(loadSequence);
+  }
+
+  async function checkProcessing(generation) {
+    const message = $("process-status");
+    message.textContent = "Checking processing service…";
+    try {
+      const response = await fetch("/api/processing", {signal:AbortSignal.timeout(8000),cache:"no-store"});
+      if (!response.ok || !(await response.json()).ready) throw new Error("Processing unavailable");
+      if (generation !== loadSequence) return;
+      $("process-grid").hidden = false;
+      message.textContent = "Ready to submit.";
+    } catch {
+      if (generation === loadSequence) message.textContent =
+        "Processing unavailable · No job started. A hosted Python service with Earthdata access is required.";
+    }
   }
 
   $("search-step").addEventListener("click", () => showStep(1));
@@ -101,50 +119,7 @@
     const options = {interactive:false, color:"#4e698d", weight:1, fillOpacity:0.05};
     for (const group of entry.polygons ?? []) {
       for (const polygon of group) {
-        $("process-grid").addEventListener("click", async () => {
-    const selection = activeSelection;
-    if (!selection || selection.mission !== "s1") return;
-    const generation = ++loadSequence;
-    const button = $("process-grid"), message = $("process-status");
-    button.disabled = true;
-    message.textContent = "Requesting processing…";
-    const api = new URL("/api/jobs", location.origin);
-    async function read(url, options) {
-      const response = await fetch(url, {...options, signal:AbortSignal.timeout(25000)});
-      if (!response.headers.get("content-type")?.includes("application/json")) {
-        throw new Error("Processing is unavailable on this GitHub Pages frontend. A hosted Python service with Earthdata access is required.");
-      }
-      const payload = await response.json();
-      if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "The processing request failed.");
-      return payload;
-    }
-    try {
-      const job = await read(api, {method:"POST", headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({granule:selection.granule, box:selection.box})});
-      message.textContent = "Preparing the displacement grid…";
-      const deadline = Date.now() + 20 * 60 * 1000;
-      while (generation === loadSequence && Date.now() < deadline) {
-        const result = await read(api.href + "/" + encodeURIComponent(job.id));
-        if (generation !== loadSequence) return;
-        if (result.state === "failed") throw new Error(result.error);
-        if (result.state === "complete") {
-          const frame = result.dataset.products[0].frames[0];
-          window.loadDeformationAtlas(result.dataset, {productIndex:0,start:frame.start,end:frame.end,box:selection.box});
-          $("grid-view").hidden = false;
-          message.textContent = "Displacement grid ready.";
-          return;
-        }
-        await new Promise(resolve => setTimeout(resolve,2000));
-      }
-      if (generation === loadSequence) throw new Error("The processing job timed out.");
-    } catch (error) {
-      if (generation === loadSequence) message.textContent = error.message;
-    } finally {
-      if (generation === loadSequence) button.disabled = false;
-    }
-  });
-
-  const numbers = polygon.trim().split(/\s+/).map(Number);
+        const numbers = polygon.trim().split(/\s+/).map(Number);
         if (numbers.length < 6 || numbers.length % 2 || !numbers.every(Number.isFinite)) continue;
         const points = numbers.filter((_x,i) => i % 2 === 0).map((lat,i) => [lat,numbers[2*i+1]]);
         if (Math.max(...points.map(p => p[1])) - Math.min(...points.map(p => p[1])) <= 180) {
@@ -221,6 +196,56 @@
       $("search-status").textContent = "Results intersect the selected bounds and date window. Verify the exact acquisition pair and footprint before preparing a displacement grid.";
     } finally {
       $("search-coverage").disabled = false;
+    }
+  });
+
+  $("process-grid").addEventListener("click", async () => {
+    const selection = activeSelection;
+    if (!selection || selection.mission !== "s1") return;
+    const generation = ++loadSequence;
+    const button = $("process-grid"), message = $("process-status");
+    const progress = $("process-progress");
+    button.disabled = true;
+    message.textContent = "Requesting processing…";
+    const api = new URL("/api/jobs", location.origin);
+    async function read(url, options) {
+      const response = await fetch(url, {...options, signal:AbortSignal.timeout(25000)});
+      if (!response.headers.get("content-type")?.includes("application/json")) {
+        throw new Error("Processing is unavailable on this GitHub Pages frontend. A hosted Python service with Earthdata access is required.");
+      }
+      const payload = await response.json();
+      if (!response.ok) throw new Error(typeof payload.detail === "string" ? payload.detail : "The processing request failed.");
+      return payload;
+    }
+    try {
+      const job = await read(api, {method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({granule:selection.granule, box:selection.box})});
+      if (generation !== loadSequence) return;
+      progress.hidden = false;
+      message.textContent = "Queued for processing…";
+      const deadline = Date.now() + 20 * 60 * 1000;
+      while (generation === loadSequence && Date.now() < deadline) {
+        const result = await read(api.href + "/" + encodeURIComponent(job.id));
+        if (generation !== loadSequence) return;
+        if (result.state === "running" && result.stage) message.textContent = result.stage;
+        if (result.state === "failed") throw new Error(result.error);
+        if (result.state === "complete") {
+          const frame = result.dataset.products[0].frames[0];
+          window.loadDeformationAtlas(result.dataset, {productIndex:0,start:frame.start,end:frame.end,box:selection.box});
+          $("grid-view").hidden = false;
+          message.textContent = "Displacement grid ready.";
+          return;
+        }
+        await new Promise(resolve => setTimeout(resolve,2000));
+      }
+      if (generation === loadSequence) throw new Error("The processing job timed out.");
+    } catch (error) {
+      if (generation === loadSequence) message.textContent = error.message;
+    } finally {
+      if (generation === loadSequence) {
+        button.disabled = false;
+        progress.hidden = true;
+      }
     }
   });
 

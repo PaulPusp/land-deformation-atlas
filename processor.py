@@ -116,10 +116,14 @@ def crop_aria(source, box, output):
     return [int(v) for v in reference], wavelength
 
 
-def process(granule_id, bounds, workdir):
+def process(granule_id, bounds, workdir, report=lambda stage: None):
     root = Path(workdir)
     source = root / "source.nc"
-    name, start, end = download_aria(catalog_record(granule_id), source)
+    report("Looking up the ASF granule…")
+    record = catalog_record(granule_id)
+    report("Downloading the source granule…")
+    name, start, end = download_aria(record, source)
+    report("Cropping the AOI and checking coherence…")
     reference, wavelength = crop_aria(source, bounds, root)
     config = {"title": "Sentinel-1 ARIA displacement", "products": [{
         "name": "Sentinel-1 ARIA GUNW", "mode": "pair", "unit": "radian", "toward_sign": 1,
@@ -132,5 +136,6 @@ def process(granule_id, bounds, workdir):
     path = root / "config.json"
     path.write_text(json.dumps(config))
     target = root / "data.js"
+    report("Building the displacement map…")
     build(path, target)
     return json.loads(target.read_text().removeprefix("window.ATLAS = ").strip().removesuffix(";"))

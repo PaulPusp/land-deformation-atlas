@@ -29,11 +29,15 @@ class Selection(BaseModel):
 
 
 def run_job(key, selection):
+    def report(stage):
+        with lock:
+            jobs[key]["stage"] = stage
+
     dataset = None
     error = None
     try:
         with TemporaryDirectory(prefix="atlas-") as directory:
-            dataset = process(selection.granule, selection.box, directory)
+            dataset = process(selection.granule, selection.box, directory, report)
     except ValueError as exc:
         error = str(exc)
     except requests.RequestException:
@@ -47,6 +51,11 @@ def run_job(key, selection):
             "state": "failed" if error else "complete",
             "error": error, "dataset": dataset, "expires": time.monotonic() + ttl,
         }
+
+
+@app.get("/api/processing")
+def processing_available():
+    return {"ready": bool(os.environ.get("EARTHDATA_TOKEN"))}
 
 
 @app.post("/api/jobs", status_code=202)
@@ -67,7 +76,7 @@ def create(selection: Selection):
         if len(jobs) >= 12 or sum(j["state"] == "running" for j in jobs.values()) >= 2:
             raise HTTPException(429, "The processing service is busy. Try again later.")
         key = secrets.token_urlsafe(24)
-        jobs[key] = {"state": "running"}
+        jobs[key] = {"state": "running", "stage": "Queued for processing…"}
         executor.submit(run_job, key, selection)
     return {"id": key}
 
